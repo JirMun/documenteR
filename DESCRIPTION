@@ -1,0 +1,49 @@
+Package: documenteR
+Title: Collect, Document and Export Analysis Outputs
+Version: 0.9.0
+Authors@R: c(
+    person("Jiri", "Munich", , "jiri.munich@paqresearch.cz",
+           role = c("aut", "cre")),
+    person("PAQ Research", role = c("cph", "fnd"))
+  )
+Description: A lightweight framework for marking analysis outputs (data,
+    plots, tables and in-text statistics) as they are produced, documenting
+    them inline, and exporting everything at once into a versioned,
+    self-describing folder structure. Each export carries README files, a
+    machine-readable manifest, a data codebook, a typeset PDF plot
+    catalogue and a full run log, so results can be handed over or
+    reproduced without additional work.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Language: en-GB
+Depends:
+    R (>= 4.1.0)
+Imports:
+    cli (>= 3.4.0),
+    grDevices,
+    grid,
+    rlang (>= 1.0.0),
+    stats,
+    tools,
+    utils
+Suggests:
+    arrow,
+    ggplot2 (>= 3.4.0),
+    jsonlite,
+    knitr,
+    lattice,
+    openxlsx,
+    png,
+    ragg,
+    rmarkdown,
+    rstudioapi,
+    svglite,
+    testthat (>= 3.0.0),
+    withr,
+    writexl
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+URL: https://github.com/JirMun/documenteR
+BugReports: https://github.com/JirMun/documenteR/issues

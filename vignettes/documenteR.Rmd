@@ -1,0 +1,298 @@
+---
+title: "Getting started with documenteR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with documenteR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(documenteR)
+options(documenteR.quiet = TRUE)
+```
+
+## The problem
+
+A typical analysis script ends with a block like this:
+
+```r
+ggsave("outputs/plots/cars.png", plt_cars, width = 16, height = 12, units = "cm")
+ggsave("outputs/plots/speed.png", plt_speed, width = 8, height = 8, units = "cm")
+write.csv(data_cars, "outputs/data/cars.csv")
+saveRDS(model, "outputs/model.rds")
+```
+
+Three months later nobody remembers what `speed.png` shows, where the data
+came from, or which version of the script produced it. And when the numbers
+change, every path and size has to be revisited.
+
+`documenteR` inverts this. You mark each output *where it is created*, with
+its documentation attached, and export everything in one call.
+
+## Initialise
+
+```{r}
+out <- init_outputs(default = FALSE)
+out
+```
+
+In a real script you would call `init_outputs()` with no arguments, which
+creates `list_outputs` in your workspace and lets every later call omit
+`output_list`. Here we keep the collection in a variable so the vignette
+stays self-contained.
+
+## Append as you go
+
+### Data
+
+```{r}
+data_cars <- cars
+
+append_data(
+  data_cars,
+  output_list = out,
+  desc   = "Speed and stopping distance of cars in the 1920s",
+  source = c(datasets = "R built-in dataset"),
+  labels = c(speed = "Speed (mph)", dist = "Stopping distance (ft)"),
+  format = c(".csv", ".rds")
+)
+```
+
+`labels` feeds the codebook that ships with the export. If your data came
+from SPSS or Stata via `haven`, the labels already stored on each column are
+picked up automatically.
+
+### Plots
+
+Any plotting system works. A `ggplot2` object:
+
+```{r eval = requireNamespace("ggplot2", quietly = TRUE)}
+plt_cars <- ggplot2::ggplot(cars, ggplot2::aes(speed, dist)) +
+  ggplot2::geom_point()
+
+append_plot(
+  plt_cars,
+  output_list = out,
+  desc = "Braking distance rises faster than speed",
+  vars = c(x = "Speed (mph)", y = "Distance (ft)"),
+  type = "m_wide"
+)
+```
+
+A base-R plot, which cannot be captured as an object, is passed as a function
+of no arguments:
+
+```{r}
+plt_hist <- function() {
+  hist(cars$speed, col = "steelblue", border = "white",
+       main = "Distribution of speeds", xlab = "Speed (mph)")
+}
+
+append_plot(plt_hist, output_list = out,
+            desc = "Speeds are roughly symmetric", type = "s_wide")
+```
+
+`lattice` objects, `grid` grobs, `gtable`s, `patchwork` compositions and
+recorded base plots are all accepted too. To support something else, define a
+`dr_draw()` method for its class.
+
+#### Sizes
+
+`type` selects a preset from `gpars$sizes$type`. The defaults are built for
+an A4 page with 2.5 cm margins, so `16` cm is the usable text width:
+
+```{r}
+names(out$gpars$sizes$type)
+out$gpars$sizes$type$m_wide
+```
+
+`H`, `W` and `units` override a preset. To check a choice before running a
+full export, use `preview_plot()`, which writes the plot at exactly the
+geometry `save_outputs()` would use and opens it:
+
+```r
+preview_plot(plt_cars, type = "m_wide")
+```
+
+### Tables
+
+`append_table()` is `append_data()` without the codebook. The distinction is
+intent: `data` is the analysis-ready dataset you want others to reuse,
+`tables` are presentation tables.
+
+```{r}
+tab_speed <- aggregate(dist ~ speed > 15, data = cars, FUN = mean)
+names(tab_speed) <- c("fast", "mean_dist")
+
+append_table(tab_speed, output_list = out,
+             desc = "Mean stopping distance by speed group")
+```
+
+### In-text statistics
+
+Numbers quoted in a report are the outputs most likely to go stale, and the
+hardest to trace. `append_stats()` records the value, how it was computed,
+and the sentence it appears in:
+
+```{r}
+stat_mean_speed <- mean(cars$speed)
+
+append_stats(
+  stat_mean_speed,
+  output_list = out,
+  type        = "float",
+  stat_round  = 1,
+  formula     = "sum(speed)/n",
+  vars        = c(speed = "Speed of each car", n = "Number of cars"),
+  text        = "Cars travelled at * mph on average.",
+  section     = "2.1"
+)
+```
+
+All appended statistics land in one table. `formula_text` is the formula with
+the variable labels substituted in, and `text_fill` is the sentence with the
+formatted number in place of `*` — ready to paste into a report:
+
+```{r}
+stats <- documenteR:::build_stats_table(out$stats, out$gpars)
+stats[, c("name", "stat", "formula_text", "text_fill")]
+```
+
+## Export
+
+```{r}
+output_dir <- file.path(tempdir(), "vignette_outputs")
+
+res <- save_outputs(
+  output_dir    = output_dir,
+  output_list   = out,
+  project_title = "Cars example",
+  version_notes = "First upload"
+)
+
+res$version
+```
+
+What was written:
+
+```{r}
+list.files(res$path, recursive = TRUE)
+```
+
+Before committing to an export, `dry_run = TRUE` reports exactly what would
+be written and writes nothing.
+
+### The README
+
+Each output folder gets a plain-text README built from the documentation you
+attached:
+
+```{r comment = ""}
+cat(get_output_README(out, "data"))
+```
+
+### The codebook
+
+```{r}
+utils::read.csv(file.path(res$path, "02_data", "00_codebook.csv"))
+```
+
+### The catalogue
+
+`03_plots/00_01_catalogue.pdf` has one page per plot: its documentation
+typeset at the top, the plot below at its true physical size. Every page is
+the same size and orientation, and aspect ratios are preserved — a plot too
+large for the page is scaled down proportionally, and the footer says by how
+much. Configure it with `dr_catalogue_pars()`.
+
+### The manifest and the log
+
+The manifest records every file with the object it came from, its
+documentation, its size and an MD5 checksum:
+
+```{r}
+man <- dr_manifest(output_dir)
+man[, c("type", "name", "file", "bytes")]
+```
+
+`dr_verify()` re-computes those checksums, which is worth running after
+copying an export across a network share. `dr_log()` shows what the export
+recorded: messages and warnings from other packages are captured there
+instead of being printed, so the progress report stays readable, and a single
+output that cannot be written is marked `failed` in the manifest while the
+rest of the export continues.
+
+## Versions
+
+Each export adds a version. Minor by default, major on request:
+
+```{r}
+save_outputs(output_dir, out, version_notes = "Fixed a label")
+save_outputs(output_dir, out, new_version = TRUE, version_notes = "New method")
+
+dr_versions(output_dir)[, c("version", "notes")]
+```
+
+`update_latest_version = TRUE` overwrites the most recent version folder
+instead of adding one — for fixing a typo, not for new results.
+
+## Configuring defaults
+
+Everything adjustable lives in `gpars`. Start from `dr_gpars()`, which merges
+your overrides into the defaults recursively, so you only name what you
+change:
+
+```{r}
+out2 <- init_outputs(
+  default = FALSE,
+  gpars = dr_gpars(
+    formats   = list(plots = c(".png", ".svg")),
+    csv_bom   = TRUE,
+    catalogue = dr_catalogue_pars(paper = "a3", orientation = "landscape")
+  )
+)
+out2$gpars$formats$plots
+out2$gpars$formats$data   # untouched
+```
+
+You can also change parameters after the fact, including adding your own
+size presets:
+
+```{r}
+out2$gpars$sizes$type$wide_banner <- list(units = "cm", H = 6, W = 24)
+names(out2$gpars$sizes$type)
+```
+
+`csv_bom = TRUE` writes a UTF-8 byte-order mark, which is what makes Excel
+open accented characters correctly. `.csv2` writes semicolon-separated values
+with a comma decimal mark, the convention Czech and German Excel expects.
+
+## Reproducibility
+
+`dr_check_code()` runs your scripts in a clean R subprocess and reports which
+ones fail — it catches the script that only works because of an object left
+over in your workspace. Guard the export at the end of a script so the check
+does not itself write an export:
+
+```r
+if (!dr_is_rerun()) {
+  save_outputs(output_dir, list_outputs, code_location = code_locations)
+}
+```
+
+`setup_code()` writes a starter script already laid out this way.
+
+## Coming from the standalone script
+
+The API is deliberately close to the original. An old `list_outputs.rds` reads
+back with `as_outputs()`, which also maps the former `gpars$ggplot` to
+`gpars$sizes`:
+
+```r
+old <- readRDS("01_output/01_list_outputs.rds")
+out <- as_outputs(old)
+```
+
+See `NEWS.md` for the full list of differences.

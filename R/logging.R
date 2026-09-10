@@ -177,17 +177,7 @@ log_write <- function(log, path, header = NULL) {
   write_utf8(lines, path)
 }
 
-#' @export
-print.documenteR_log <- function(x, ...) {
-  counts <- table(log_levels(x))
-  cli::cli_h2("documenteR log")
-  if (!length(counts)) {
-    cli::cli_alert_info("Empty.")
-  } else {
-    for (nm in names(counts)) cli::cli_text("{.strong {nm}}: {counts[[nm]]}")
-  }
-  invisible(x)
-}
+# print.documenteR_log() lives in print.R.
 
 #' Read the log of a saved export
 #'

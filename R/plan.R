@@ -53,18 +53,21 @@ plan_outputs <- function(entries, gpars, type) {
 
   root_counter <- 0L
   folder_counter <- stats::setNames(integer(length(folder_order)), folder_order)
+  id <- character(n)
 
   for (i in seq_len(n)) {
     safe_name <- sanitise_filename(nms[i])
     if (is_root[i]) {
       root_counter <- root_counter + 1L
-      stem[i] <- paste0(pad_id(root_counter, width), "_", safe_name)
+      id[i] <- pad_id(root_counter, width)
+      stem[i] <- paste0(id[i], "_", safe_name)
       dir[i] <- ""
     } else {
       sf <- subfolder[i]
       folder_counter[[sf]] <- folder_counter[[sf]] + 1L
       fid <- folder_id[[sf]]
-      stem[i] <- paste0(fid, "_", pad_id(folder_counter[[sf]], 2L), "_", safe_name)
+      id[i] <- paste0(fid, "_", pad_id(folder_counter[[sf]], 2L))
+      stem[i] <- paste0(id[i], "_", safe_name)
       safe_sf <- paste(sanitise_filename(strsplit(sf, "/", fixed = TRUE)[[1]]), collapse = "/")
       dir[i] <- paste0(fid, "_", safe_sf)
     }
@@ -74,6 +77,7 @@ plan_outputs <- function(entries, gpars, type) {
     name = nms,
     subfolder = subfolder,
     dir = dir,
+    id = id,
     stem = stem,
     formats = formats,
     orig_id = seq_len(n),

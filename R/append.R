@@ -58,6 +58,10 @@ store_entry <- function(store, type, name, entry, quiet = FALSE, replace = TRUE)
       cli::cli_alert_info("Replacing existing {type} entry {.val {name}}.")
     }
   }
+  # Tag the entry so that printing a single output renders its documentation
+  # rather than dumping the plot object or the whole data frame.
+  entry <- structure(entry, class = "dr_entry", dr_type = type, dr_name = name)
+
   lst <- store[[type]]
   lst[[name]] <- entry
   store[[type]] <- lst

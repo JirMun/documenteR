@@ -182,5 +182,6 @@ test_that("summary() reports what has been appended", {
   s <- summary(out)
   expect_s3_class(s, "data.frame")
   expect_equal(s$name, "d")
-  expect_true(s$documented)
+  expect_true(s$has_desc)
+  expect_equal(s$doc_fields, 1L)
 })

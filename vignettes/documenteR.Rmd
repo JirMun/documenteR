@@ -160,6 +160,39 @@ stats <- documenteR:::build_stats_table(out$stats, out$gpars)
 stats[, c("name", "stat", "formula_text", "text_fill")]
 ```
 
+## Review before exporting
+
+Printing the collection shows what it holds, with the file name each output
+will get, so it doubles as a preview of the export:
+
+```{r}
+out
+```
+
+The last line reports documentation coverage, which is the quickest way to
+notice the plot nobody described. `print(out, detail = TRUE)` lists every
+output and adds the description column.
+
+`summary()` gives the full inventory as a data frame:
+
+```{r}
+summary(out)
+```
+
+Because it is an ordinary data frame underneath, you can ask it the obvious
+question:
+
+```{r}
+s <- summary(out)
+s$name[!s$has_desc]
+```
+
+And to see everything recorded about one output, print it:
+
+```{r}
+out$plots$plt_hist
+```
+
 ## Export
 
 ```{r}

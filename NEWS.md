@@ -82,6 +82,39 @@ Rebuilt from scratch, with `grid` rather than stacked ggplot objects:
 * Progress is reported with `cli`, with a progress bar per output type.
 * `dr_log()` reads back the log of a saved version.
 
+## Printing and inspection
+
+An output collection, and each individual output in it, now report themselves
+properly. All of this is plain S3 dispatch on the existing object, so nothing
+about the API changed.
+
+* `print()` on a collection lists what it holds, grouped by type, with the
+  number and file name each output will be exported under, its title, its
+  size and its formats — so it doubles as a preview of the export. It closes
+  with a documentation-coverage line, which is the quickest way to notice the
+  plot nobody described. `print(x, detail = TRUE)` shows every output and adds
+  the description column; `print(x, n = 20)` sets how many to list per type.
+* `summary()` returns the full inventory as a data frame — one row per output
+  with `file`, `formats`, `size`, `desc`, `source` and the flags `has_desc`,
+  `has_vars`, `has_source` and `doc_fields`. It prints as an aligned table but
+  subsets like any data frame, which makes the obvious question easy to ask:
+  `s$name[!s$has_desc]`.
+* Appended outputs now carry a `dr_entry` class, so printing one shows the
+  documentation you recorded rather than dumping the plot object or the whole
+  data frame: `list_outputs$plots$plt_cars`.
+* `print()` on the result of `save_outputs()` breaks the written files down by
+  type and names any that failed.
+* `print()` on a log leads with the errors and warnings rather than the
+  routine progress lines.
+* `save_outputs(dry_run = TRUE)` returns an object with its own `print()`
+  method, so a stored dry run can be re-displayed. Display logic lives only in
+  the print method, so what the call shows and what the object prints cannot
+  drift apart.
+* `format()` methods give one-line summaries for both a collection and a
+  single output.
+* The export plan gained an `id` column, which is the number shown in
+  `print()` and `summary()`.
+
 ## New
 
 * `00_MANIFEST.csv` / `.json`: one row per written file, with the object it
@@ -99,7 +132,6 @@ Rebuilt from scratch, with `grid` rather than stacked ggplot objects:
   exporting rather than instead of it, and `dr_is_rerun()` lets a script skip
   its own export during the check.
 * `remove_outputs()` drops appended entries by name or type.
-* `print()` and `summary()` methods for a collection.
 * `dr_gpars()`, `dr_formats()`, `dr_folders()`, `dr_output_types()` make the
   defaults discoverable and overridable without editing nested lists by hand.
 * Package options `documenteR.quiet`, `documenteR.verbose`,

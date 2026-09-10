@@ -116,7 +116,11 @@ save_outputs <- function(output_dir,
   }
 
   # -- dry run -------------------------------------------------------------
-  if (isTRUE(dry_run)) return(invisible(report_dry_run(store, output_dir, present, exclude, catalogue)))
+  if (isTRUE(dry_run)) {
+    report <- build_dry_run(store, output_dir, present, exclude, catalogue)
+    if (!quiet) print(report)
+    return(invisible(report))
+  }
 
   # -- optional reproducibility check --------------------------------------
   if (isTRUE(rerun_code)) {
@@ -295,21 +299,7 @@ save_outputs <- function(output_dir,
   ))
 }
 
-#' @export
-print.documenteR_export <- function(x, ...) {
-  cli::cli_h2("documenteR export {.strong {x$version}}")
-  cli::cli_text("{.path {x$path}}")
-  if (!is.na(x$version_name) && nzchar(x$version_name)) {
-    cli::cli_text("{.emph {x$version_name}}")
-  }
-  if (x$n_failed > 0L) {
-    cli::cli_text("{x$n_written} file{?s} written, {x$n_failed} failed")
-  } else {
-    cli::cli_text("{x$n_written} file{?s} written")
-  }
-  if (x$warnings > 0L) cli::cli_text("{x$warnings} warning{?s} recorded in {.path 00_LOG.txt}")
-  invisible(x)
-}
+# print.documenteR_export() lives in print.R.
 
 
 # Helpers ---------------------------------------------------------------------
@@ -346,20 +336,22 @@ copy_code <- function(code_location, dir, gpars, log) {
   do.call(rbind, rows)
 }
 
-report_dry_run <- function(store, output_dir, present, exclude, catalogue) {
+# Build the dry-run report. Display is left entirely to
+# print.documenteR_dry_run(), so what save_outputs() shows and what you see
+# when you print a stored report can never drift apart.
+build_dry_run <- function(store, output_dir, present, exclude, catalogue) {
   vers <- scan_versions(output_dir)
   next_version <- if (nrow(vers)) {
     paste0(vers$major[nrow(vers)], "_", vers$minor[nrow(vers)] + 1L)
   } else {
     "0_1"
   }
-  cli::cli_h2("Dry run: nothing will be written")
-  cli::cli_text("Target: {.path {path_join(output_dir, next_version)}}")
 
   planned <- list()
   for (ty in present) {
     if (ty %in% exclude) {
-      cli::cli_alert_info("{.field {ty}}: excluded")
+      # NA marks "excluded" as distinct from "no files".
+      planned[[ty]] <- NA_character_
       next
     }
     plan <- plan_outputs(store[[ty]], store$gpars, ty)
@@ -376,15 +368,16 @@ report_dry_run <- function(store, output_dir, present, exclude, catalogue) {
       files <- c(files, "00_codebook.csv")
     }
     planned[[ty]] <- files
-    cli::cli_alert_success("{.field {ty}}: {length(files)} file{?s}")
-    cli::cli_ul(utils::head(files, 12L))
-    if (length(files) > 12L) cli::cli_text("... and {length(files) - 12L} more")
   }
-  invisible(structure(
-    list(version = next_version, path = path_join(output_dir, next_version),
-         planned = planned),
+
+  structure(
+    list(
+      version = next_version,
+      path = path_join(output_dir, next_version),
+      planned = planned
+    ),
     class = "documenteR_dry_run"
-  ))
+  )
 }
 
 

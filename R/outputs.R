@@ -85,74 +85,11 @@ init_outputs <- function(default = TRUE, gpars = dr_gpars(), quiet = NULL) {
 dr_output_types <- function() c("data", "plots", "tables", "stats")
 
 #' @export
-print.documenteR_outputs <- function(x, ...) {
-  cli::cli_h1("documenteR output collection")
-  counts <- vapply(dr_output_types(), function(ty) length(x[[ty]]), integer(1))
-  if (sum(counts) == 0L) {
-    cli::cli_alert_info("Empty. Append outputs with {.fun append_plot} and friends.")
-  } else {
-    for (ty in dr_output_types()) {
-      if (counts[[ty]] == 0L) next
-      nms <- names(x[[ty]])
-      cli::cli_text("{.strong {ty}} ({counts[[ty]]}): {.val {nms}}")
-    }
-  }
-  fmt <- x$gpars$formats
-  cli::cli_text("")
-  cli::cli_text(
-    "{.emph formats} data {.val {fmt$data}} \u00B7 plots {.val {fmt$plots}} \u00B7 ",
-    "tables {.val {fmt$tables}} \u00B7 stats {.val {fmt$stats}}"
-  )
-  if (!is.null(x$.created)) cli::cli_text("{.emph created} {x$.created}")
-  invisible(x)
-}
-
-#' @export
-format.documenteR_outputs <- function(x, ...) {
-  counts <- vapply(dr_output_types(), function(ty) length(x[[ty]]), integer(1))
-  sprintf(
-    "<documenteR_outputs: %s>",
-    paste(sprintf("%s=%d", names(counts), counts), collapse = ", ")
-  )
-}
-
-#' @export
 length.documenteR_outputs <- function(x) {
   sum(vapply(dr_output_types(), function(ty) length(x[[ty]]), integer(1)))
 }
 
-#' @export
-summary.documenteR_outputs <- function(object, ...) {
-  rows <- lapply(dr_output_types(), function(ty) {
-    entries <- object[[ty]]
-    if (length(entries) == 0L) return(NULL)
-    data.frame(
-      type = ty,
-      name = names(entries),
-      title = vapply(entries, function(e) {
-        as.character(e$documentation$title %||% NA_character_)[1]
-      }, character(1)),
-      subfolder = vapply(entries, function(e) {
-        as.character(e$subfolder %||% "")[1]
-      }, character(1)),
-      documented = vapply(entries, function(e) {
-        !is_blank(e$documentation$desc)
-      }, logical(1)),
-      stringsAsFactors = FALSE
-    )
-  })
-  rows <- rows[!vapply(rows, is.null, logical(1))]
-  if (length(rows) == 0L) {
-    return(data.frame(
-      type = character(0), name = character(0), title = character(0),
-      subfolder = character(0), documented = logical(0),
-      stringsAsFactors = FALSE
-    ))
-  }
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
-}
+# print(), format() and summary() methods live in print.R.
 
 #' Coerce to an output collection
 #'
